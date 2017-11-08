@@ -1,0 +1,225 @@
+import com.solartis.data.QuestionHashMap;
+import com.solartis.data.MapEntry;
+import com.solartis.rules.common.RuleInformation;
+import java.util.ArrayList;
+import java.util.Date;
+import java.lang.Object;
+import java.text.Format;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import com.solartis.rules.util.DroolsUtilities;
+import com.dms.util.Constants;
+import com.solartis.ejb.application.ApplicationManager;
+import org.hibernate.Session;
+import java.sql.Connection;
+
+global RuleInformation ruleInformation;
+
+/*Purpose of this rule flow : To Get User & Role Information Repository*/
+/*Created by:ramya_r@solartis.com*/	
+/*Created Date:23-Aug-2017*/
+
+rule "User Info Lookup"
+ruleflow-group "User_Info_Lookup"
+no-loop
+    when
+    	 agentIdMapEntry:MapEntry(keyAsString == "Object::Primary::ObjectId",agentId:valueAsLong);
+	     ownerIdEntry:MapEntry(keyAsString =="Object::OwnerId",ownerId:valueAsLong);
+	     userNameEntry:MapEntry(keyAsString =="Object::User::Name",userName:valueAsString);
+   	     not MapEntry(keyAsString =="User Info Fetched");	    
+	     requestDetailMap:QuestionHashMap();
+    then
+   		 Connection transactionConnection = null;
+		 ApplicationManager applicationManager = null;
+		 Session session= null;
+		 Connection configConnection = null;
+		 ArrayList userList = new ArrayList();
+		 ArrayList customerList = new ArrayList();
+		 String objectInformation = null;
+	
+		 try{
+		     transactionConnection = (Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+	 		 applicationManager=(ApplicationManager)requestDetailMap.get("Object::Application::Lookup::Object");
+		   	 session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+		     configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+
+			 requestDetailMap.put("Object::Application::SubApplicationType","BordereauUserInfo");			
+			 requestDetailMap.put("Object::Application::ObjectName","BORDEREAU_ENTITY");
+			 requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");	
+			 requestDetailMap.put("Object::Application::ObjectId","0");
+			 requestDetailMap.put("Object::Application::ObjectVerId","0");
+			 requestDetailMap.put("Object::Application::SubApplicationName","UserDetailBordereau");
+ 			 requestDetailMap.put("Object::OwnerId",ownerId);
+ 			 requestDetailMap.put("Object::User::Name",userName);	
+			 update(requestDetailMap);
+
+			 userList = applicationManager.getApplicationTransactionData(requestDetailMap,ownerId,"APPLICATION_BEAN",configConnection,transactionConnection);
+			 if(userList != null && userList.size() > 0) {	
+		 	 	QuestionHashMap userMap = (QuestionHashMap)userList.get(0);
+		 	 	if(userMap != null && userMap.size() >0) {
+			 		requestDetailMap.put("Object::User::UserId",userMap.getString("Object::User::UserId"));	
+		 			requestDetailMap.put("Object::User::Role::RoleId",userMap.getString("Object::User::Role::RoleId"));	
+		 			requestDetailMap.put("Object::User::RoleType",userMap.getString("Object::User::RoleType"));
+		 			requestDetailMap.put("Object::User::RoleName",userMap.getString("Object::User::RoleName"));
+	
+					requestDetailMap.put("Object::User::FirstName",userMap.getString("Object::User::FirstName"));
+					requestDetailMap.put("Object::User::LastName",userMap.getString("Object::User::LastName"));
+	
+		 			requestDetailMap.put("Object::User::Profile::CurrentPassword",userMap.getString("Object::User::Profile::CurrentPassword"));	
+					objectInformation = "0=0, " + "Object::User::UserId=" + requestDetailMap.getString("Object::User::UserId");
+					objectInformation = objectInformation + ", Object::User::Role::RoleId=" + requestDetailMap.getString("Object::User::Role::RoleId");
+					objectInformation = objectInformation + ", Object::User::RoleType=" + requestDetailMap.getString("Object::User::RoleType");				
+					objectInformation = objectInformation + ", Object::User::RoleName=" + requestDetailMap.getString("Object::User::RoleName");
+					objectInformation = objectInformation + ", " + "Object::User::DefaultLandingURL=" + userMap.getString("Object::User::LandingURL");
+					objectInformation = objectInformation + ", " + "Object::User::Profile::CurrentPassword=" + userMap.getString("Object::User::Profile::CurrentPassword");
+					objectInformation = objectInformation + ", Object::User::FirstName=" + requestDetailMap.getString("Object::User::FirstName");
+					objectInformation = objectInformation + ", Object::User::LastName=" + requestDetailMap.getString("Object::User::LastName");
+				
+
+			 	if(userMap.getString("Object::User::IsPasswordResetNeeded").equalsIgnoreCase("Y")) {
+					 objectInformation = objectInformation + ", " + "Object::User::LandingURL=" + requestDetailMap.getString("Object::User::LandingURL");
+			 	} else {
+			 		objectInformation = objectInformation + ", " + "Object::User::LandingURL=" + userMap.getString("Object::User::LandingURL");
+			 	}
+			 	objectInformation = objectInformation + ", " + "Object::User::IsPasswordResetNeeded=" + userMap.getString("Object::User::IsPasswordResetNeeded");
+			 	requestDetailMap.put("Object::PrimaryObject::Information",objectInformation);
+			 	update(requestDetailMap);
+				}
+			 }
+
+		 }
+		 catch(Exception exception){
+			 requestDetailMap.put("Object::Exception::Status","Failed");
+			 requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+			 insert(new MapEntry("User Info Fetched","N"));
+			 update(requestDetailMap);
+		 }
+		 insert(new MapEntry("User Info Fetched","Y"));
+end
+
+
+/*Purpose of this rule flow : To Get Entity Information Repository*/
+/*Created by:ramya_r@solartis.com*/	
+/*Created Date:23-Aug-2017*/
+
+
+rule "Entity_Information"
+ruleflow-group "Entity_Information"
+no-loop
+    when
+         agentIdMapEntry:MapEntry(keyAsString == "Object::Primary::ObjectId",agentId:valueAsLong);
+         objectyTypeMapEntry:MapEntry(keyAsString == "Object::Primary::ObjectType",ObjectType:valueAsString);
+         ownerIdEntry:MapEntry(keyAsString =="Object::OwnerId",ownerId:valueAsLong);
+         not MapEntry(keyAsString =="Entity Information fetched");
+         requestDetailMap:QuestionHashMap();
+    then
+         Connection transactionConnection = null;
+         ApplicationManager applicationManager = null;
+         Session session= null;
+         Connection configConnection = null;
+         ArrayList userListInfo = new ArrayList();
+         String objectInformation = null;
+
+     try{
+         transactionConnection = (Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+         applicationManager=(ApplicationManager)requestDetailMap.get("Object::Application::Lookup::Object");
+         session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+         configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+
+         requestDetailMap.put("Object::Application::SubApplicationType","BordereauEntityInfo");
+         requestDetailMap.put("Object::Application::ObjectName","BORDEREAU_ENTITY");
+         requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+         requestDetailMap.put("Object::Application::ObjectId","0");
+         requestDetailMap.put("Object::Application::ObjectVerId","0");
+         requestDetailMap.put("Object::Application::SubApplicationName","UserDetailBordereau");
+         requestDetailMap.put("Object::OwnerId",ownerId);
+         requestDetailMap.put("Object::Primary::ObjectId",agentId);
+         requestDetailMap.put("Object::Primary::ObjectType",ObjectType);
+         update(requestDetailMap);
+
+		 userListInfo = applicationManager.getApplicationTransactionData(requestDetailMap,ownerId,"APPLICATION_BEAN",configConnection,transactionConnection);
+         if(userListInfo != null && userListInfo.size() > 0) {
+         	if(userListInfo.get(0) != null) {
+	           requestDetailMap.put("Object::Entity::ObjectType",((QuestionHashMap)userListInfo.get(0)).getString("Object::Entity::ObjectType"));
+	           requestDetailMap.put("Object::Entity::ObjectID",((QuestionHashMap)userListInfo.get(0)).getString("Object::Entity::ObjectID"));
+	           requestDetailMap.put("Object::Entity::EntityType",((QuestionHashMap)userListInfo.get(0)).getString("Object::Entity::EntityType"));
+			   requestDetailMap.put("Object::Entity::ObjectLinkID",((QuestionHashMap)userListInfo.get(0)).getString("Object::Entity::ObjectLinkID"));
+	           objectInformation = requestDetailMap.getString("Object::PrimaryObject::Information");
+	           objectInformation = objectInformation + ", Object::Entity::ObjectType=" + requestDetailMap.getString("Object::Entity::ObjectType");
+	           objectInformation = objectInformation + ", Object::Entity::ObjectID=" + requestDetailMap.getString("Object::Entity::ObjectID");
+	           objectInformation = objectInformation + ", Object::Entity::EntityType=" + requestDetailMap.getString("Object::Entity::EntityType");
+	           requestDetailMap.put("Object::PrimaryObject::Information",objectInformation);
+	           update(requestDetailMap);
+			}
+          }
+        }
+        catch(Exception exception){
+             requestDetailMap.put("Object::Exception::Status","Failed");
+             requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+             insert(new MapEntry("Entity Information fetched","N"));
+             update(requestDetailMap);
+        }
+             insert(new MapEntry("Entity Information fetched","Y"));
+end
+
+
+/*Purpose of this rule flow : To Get Agency Information Repository*/
+/*Created by:ramya_r@solartis.com*/	
+/*Created Date:23-Aug-2017*/
+
+
+rule "GetAgencyInformation"
+ruleflow-group "GetAgencyInformation"
+no-loop
+    when
+         agentIdMapEntry:MapEntry(keyAsString == "Object::Primary::ObjectId",agentId:valueAsLong);
+         ownerIdEntry:MapEntry(keyAsString =="Object::OwnerId",ownerId:valueAsLong);
+         not MapEntry(keyAsString =="Agency Admin info fetched");
+		 requestDetailMap:QuestionHashMap();
+    then
+         Connection transactionConnection = null;
+         ApplicationManager applicationManager = null;
+         Session session= null;
+         Connection configConnection = null;
+         ArrayList agencyInfo = new ArrayList();
+         String objectInformation = null;
+         try{
+             transactionConnection = (Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+             applicationManager=(ApplicationManager)requestDetailMap.get("Object::Application::Lookup::Object");
+             session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+             configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+
+             requestDetailMap.put("Object::Application::SubApplicationType","BordereauAgencyInfo");
+             requestDetailMap.put("Object::Application::ObjectName","BORDEREAU_ENTITY");
+             requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+             requestDetailMap.put("Object::Application::ObjectId","0");
+             requestDetailMap.put("Object::Application::ObjectVerId","0");
+             requestDetailMap.put("Object::Application::SubApplicationName","UserDetailBordereau");
+             requestDetailMap.put("Object::OwnerId",ownerId);
+             requestDetailMap.put("Object::Entity::ObjectID",requestDetailMap.get("Object::Entity::ObjectID"));
+             update(requestDetailMap);
+			 agencyInfo = applicationManager.getApplicationTransactionData(requestDetailMap,ownerId,"APPLICATION_BEAN",configConnection,transactionConnection);
+             if(agencyInfo != null && agencyInfo.size() > 0) {
+             	if(agencyInfo.get(0) != null) {
+	                requestDetailMap.put("Object::Agency::AgencyID",((QuestionHashMap)agencyInfo.get(0)).getString("Object::Agency::AgencyID"));
+	                requestDetailMap.put("Object::Agency::Name",((QuestionHashMap)agencyInfo.get(0)).getString("Object::Agency::Name"));
+	                requestDetailMap.put("Object::Agency::ProducerType",((QuestionHashMap)agencyInfo.get(0)).getString("Object::Agency::ProducerType"));
+	                update(requestDetailMap);
+	                objectInformation = requestDetailMap.getString("Object::PrimaryObject::Information");
+	                objectInformation = objectInformation + ", Object::Agency::AgencyID=" + requestDetailMap.getString("Object::Agency::AgencyID");
+	                objectInformation = objectInformation + ", Object::Agency::Name=" + requestDetailMap.getString("Object::Agency::Name");
+	                objectInformation = objectInformation + ", Object::Agency::ProducerType=" + requestDetailMap.getString("Object::Agency::ProducerType");
+					requestDetailMap.put("Object::PrimaryObject::Information",objectInformation);
+                }
+             }
+         }
+         catch(Exception exception){
+            requestDetailMap.put("Object::Exception::Status","Failed");
+            requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+            insert(new MapEntry("Agency Admin info fetched","N"));
+            update(requestDetailMap);
+         }
+             insert(new MapEntry("Agency Admin info fetched","Y"));
+end
+

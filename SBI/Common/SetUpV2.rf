@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<process xmlns="http://drools.org/drools-5.0/process"
+         xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+         xs:schemaLocation="http://drools.org/drools-5.0/process drools-processes-5.0.xsd"
+         type="RuleFlow" name="Initial Set Up" id="SetUpV2" package-name="com.solartis.event.Starr.PMS.Common" >
+
+  <header>
+    <imports>
+      <import name="com.solartis.data.QuestionHashMap" />
+    </imports>
+  </header>
+
+  <nodes>
+    <start id="1" name="Start" x="7" y="144" width="48" height="48" />
+    <ruleSet id="7" name="Load Owner Details" x="94" y="144" width="121" height="48" ruleFlowGroup="OwnerConfiguration" />
+    <ruleSet id="9" name="Create Session" x="627" y="143" width="104" height="48" ruleFlowGroup="CreateSessionV2" />
+    <ruleSet id="50" name="Close Session" x="766" y="225" width="128" height="48" ruleFlowGroup="CloseSessionV2" />
+    <split id="49" name="Gateway" x="804" y="145" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-107</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="50" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="54" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <fault id="48" name="Error" x="507" y="274" width="104" height="48" faultName="Exception while Bean Look Up1" />
+    <split id="55" name="Gateway" x="1038" y="140" width="49" height="56" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-285</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="58" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+        <constraint toNodeId="56" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="54" name="GetOwnerConfiguration" x="886" y="145" width="131" height="44" ruleFlowGroup="GetOwnerConfiguration" />
+    <fault id="53" name="Error" x="804" y="314" width="49" height="48" faultName="Exception while creating session1" />
+    <end id="58" name="End" x="1111" y="142" width="44" height="30" />
+    <fault id="57" name="Error" x="1041" y="306" width="42" height="37" faultName="Exception in Get owner configuration" />
+    <ruleSet id="56" name="CloseSession" x="1014" y="221" width="99" height="44" ruleFlowGroup="CloseSessionV2" />
+    <split id="29" name="Validate Bean Look up" x="507" y="146" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-113</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="9" toType="DROOLS_DEFAULT" name="No exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+        <constraint toNodeId="48" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="28" name="Bean Look Up" x="299" y="142" width="92" height="51" ruleFlowGroup="BeanLookUpV2" />
+  </nodes>
+
+  <connections>
+    <connection from="1" to="7" />
+    <connection from="29" to="9" />
+    <connection from="49" to="50" />
+    <connection from="9" to="49" />
+    <connection from="29" to="48" />
+    <connection from="54" to="55" />
+    <connection from="49" to="54" />
+    <connection from="50" to="53" />
+    <connection from="55" to="58" />
+    <connection from="56" to="57" />
+    <connection from="55" to="56" />
+    <connection from="28" to="29" />
+    <connection from="7" to="28" />
+  </connections>
+
+</process>

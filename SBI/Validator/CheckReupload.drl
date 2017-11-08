@@ -1,0 +1,70 @@
+package com.solartis.event.BordereauImport.Validator;
+
+import com.solartis.data.QuestionHashMap;
+import com.solartis.data.MapEntry;
+import java.util.ArrayList;
+import java.sql.Connection;
+import java.sql.SQLException;
+import org.hibernate.Session;
+import com.solartis.data.*;
+import java.util.Date;
+import com.solartis.ejb.application.ApplicationManager;
+import com.solartis.application.ejb.ApplicationManagerV2;
+import java.text.SimpleDateFormat;
+
+rule "Check_Reupload"
+ruleflow-group "Check_Reupload"
+no-loop
+when
+	not MapEntry(keyAsString =="Check_Reupload_Executed");
+	requestDetailMap:QuestionHashMap(); 
+	ownerIdEntry:MapEntry(keyAsString =="Object::OwnerId",ownerId:valueAsLong);
+	sdf:SimpleDateFormat();	
+then
+    Connection transactionConnection = null;
+	ApplicationManagerV2 applicationManagerV2 = null;
+	Session session= null;
+	Connection configConnection = null;
+	try{
+
+		transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+ 		applicationManagerV2=(ApplicationManagerV2)requestDetailMap.get("Object::ApplicationV2::Lookup::Object");
+	   	session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+	    configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+		ArrayList<ArrayList<QuestionHashMap>> fileStatusList=new ArrayList<ArrayList<QuestionHashMap>>();
+		ArrayList<QuestionHashMap> fileStatus = new ArrayList<QuestionHashMap>();
+		
+		requestDetailMap.put("Object::Application::SubApplicationType","GetFileImportStatus");
+		requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+		requestDetailMap.put("Object::Application::SubApplicationName","GetFileImportStatus");
+		requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+		requestDetailMap.put("Object::Application::ObjectId",0);
+		requestDetailMap.put("Object::Application::ObjectVerId",0);  
+		requestDetailMap.put("Object::Application::Active","Y");
+		
+		Date bordereauImportDate = sdf.parse(requestDetailMap.getString("Object::Bordereau::ScheduledDate"));
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+		requestDetailMap.put("Object::Bordereau::ScheduledDate",dateFormat.format(bordereauImportDate));
+		requestDetailMap.put("Object::ServiceRequest::OwnerID",ownerId); 
+		fileStatusList = applicationManagerV2.getApplicationTransactionDataList(requestDetailMap, ownerId, "APPLICATION_BEAN", configConnection, transactionConnection);
+		if(fileStatusList!=null && fileStatusList.size() > 0)
+		{
+			fileStatus = (ArrayList<QuestionHashMap>)fileStatusList.get(0);
+			if(fileStatus != null && fileStatus.size() >0)
+			{
+				QuestionHashMap fileStatusMap = (QuestionHashMap)fileStatus.get(0);
+				requestDetailMap.put("Object::Bordereau::FileImportStatus",fileStatusMap.getString("Object::Bordereau::FileImportStatus"));
+			}
+		}
+	}
+	catch(Exception exception){
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+                    requestDetailMap.put("Object::Status","Failed");
+		update(requestDetailMap);
+	}
+	finally
+	{
+		insert(new MapEntry("Check_Reupload_Executed","Y"));
+	}
+end			

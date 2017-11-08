@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<process xmlns="http://drools.org/drools-5.0/process"
+         xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+         xs:schemaLocation="http://drools.org/drools-5.0/process drools-processes-5.0.xsd"
+         type="RuleFlow" name="flow" id="GetPrimaryObjectInformation" package-name="com.sample.ruleflow" >
+
+  <header>
+    <imports>
+      <import name="com.solartis.data.MapEntry" />
+      <import name="com.solartis.data.QuestionHashMap" />
+    </imports>
+  </header>
+
+  <nodes>
+    <fault id="68" name="Error" x="780" y="360" width="48" height="48" faultName="Error Fetching entity Information" faultVariable="Error Fetching entity Information" />
+    <start id="1" name="Start" x="12" y="144" width="48" height="48" />
+    <split id="71" name="Gateway" x="780" y="144" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-2</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="67" toType="DROOLS_DEFAULT" name="Failure" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "Entity Information fetched" , UserInfo:valueAsString != "Y");</constraint>
+        <constraint toNodeId="38" toType="DROOLS_DEFAULT" name="Success" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "Entity Information fetched" , UserInfo:valueAsString == "Y");</constraint>
+      </constraints>
+    </split>
+    <split id="65" name="Gateway" x="1293" y="144" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-3</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="11" toType="DROOLS_DEFAULT" name="Success" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "Agency Admin info fetched" , AgencyAdminInfo:valueAsString == "Y");</constraint>
+        <constraint toNodeId="59" toType="DROOLS_DEFAULT" name="Error" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "Agency Admin info fetched" , AgencyAdminInfo:valueAsString != "Y");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="6" name="Get Agency Admin Infomration" x="1032" y="144" width="193" height="48" ruleFlowGroup="GetAgencyInformation" />
+    <subProcess id="67" name="RollbackV2" x="744" y="240" width="121" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-5</value>
+      </metaData>
+    </subProcess>
+    <subProcess id="76" name="RollbackV2" x="480" y="300" width="121" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-6</value>
+      </metaData>
+    </subProcess>
+    <fault id="77" name="Error" x="516" y="420" width="48" height="48" faultName="Error Fetching User Information" faultVariable="Error Fetching User Information" />
+    <subProcess id="78" name="SetUpV2" x="96" y="144" width="121" height="48" processId="SetUpV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-8</value>
+      </metaData>
+    </subProcess>
+    <join id="11" name="Gateway" x="1620" y="144" width="49" height="49" type="2" />
+    <split id="79" name="Gateway" x="252" y="144" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-9</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="80" toType="DROOLS_DEFAULT" name="Failure" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="42" toType="DROOLS_DEFAULT" name="Success" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <split id="75" name="Gateway" x="516" y="144" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-11</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="32" toType="DROOLS_DEFAULT" name="To Entity" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "User Info Fetched" , UserInfo:valueAsString == "Y") and 
+(objectType:MapEntry(keyAsString =="Object::Primary::ObjectType",value!=null)) and   
+( objectTypeValue:MapEntry(keyAsString =="Object::Primary::ObjectType",value=="ENTITY"))</constraint>
+        <constraint toNodeId="76" toType="DROOLS_DEFAULT" name="Failure" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "User Info Fetched" , UserInfo:valueAsString != "Y");</constraint>
+      </constraints>
+    </split>
+    <subProcess id="84" name="RollbackV2" x="1253" y="359" width="110" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-12</value>
+      </metaData>
+    </subProcess>
+    <ruleSet id="16" name="CloseSessionV2" x="2132" y="141" width="121" height="48" ruleFlowGroup="CloseSessionV2" />
+    <split id="87" name="Gateway" x="1278" y="288" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-14</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="84" toType="DROOLS_DEFAULT" name="Failed" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "Starr Admin Information fetched" , AgencyAdminInfo:valueAsString != "Y");</constraint>
+        <constraint toNodeId="11" toType="DROOLS_DEFAULT" name="Success" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "Starr Admin Information fetched" , AgencyAdminInfo:valueAsString == "Y");</constraint>
+      </constraints>
+    </split>
+    <fault id="86" name="Error" x="1476" y="360" width="48" height="48" faultName="Error Fetching STARRADMIN Information" faultVariable="Error Fetching STARRADMIN Information" />
+    <fault id="81" name="Error" x="252" y="348" width="48" height="48" faultName="Rule flow process aborted after set up" />
+    <subProcess id="80" name="RollbackV2" x="216" y="252" width="121" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-17</value>
+      </metaData>
+    </subProcess>
+    <fault id="83" name="Error" x="1860" y="348" width="48" height="48" faultName="Error Fetching NON_ENTITY Information" faultVariable="Error Fetching NON_ENTITY Information" />
+    <split id="23" name="Gateway" x="2173" y="241" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-19</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="25" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "CloseSession_Executed" , CloseSessionInfo:valueAsString == "Y");</constraint>
+        <constraint toNodeId="26" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "CloseSession_Executed" , CloseSessionInfo:valueAsString != "Y");</constraint>
+      </constraints>
+    </split>
+    <subProcess id="82" name="RollbackV2" x="1697" y="349" width="110" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-20</value>
+      </metaData>
+    </subProcess>
+    <end id="25" name="End" x="2268" y="243" width="48" height="48" />
+    <fault id="27" name="Error" x="2179" y="417" width="48" height="48" faultName="Error While Getting Primary Object Information" />
+    <subProcess id="26" name="RollbackV2" x="2137" y="322" width="122" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-26</value>
+      </metaData>
+    </subProcess>
+    <subProcess id="89" name="RollbackV2" x="1255" y="530" width="110" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-27</value>
+      </metaData>
+    </subProcess>
+    <split id="88" name="Gateway" x="1284" y="456" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-28</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="11" toType="DROOLS_DEFAULT" name="Success" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "SysAdmin Information fetched" , AgencyAdminInfo:valueAsString == "Y");</constraint>
+        <constraint toNodeId="89" toType="DROOLS_DEFAULT" name="Failed" priority="1" type="rule" dialect="mvel" >mapEntry : MapEntry( key == "SysAdmin Information fetched" , AgencyAdminInfo:valueAsString == "Y");</constraint>
+      </constraints>
+    </split>
+    <fault id="90" name="Error" x="1476" y="528" width="48" height="48" faultName="Error Fetching SOLARTISADMIN Information" faultVariable="Error Fetching SOLARTISADMIN Information" />
+    <ruleSet id="34" name="Get SysAdmin Information" x="1037" y="457" width="193" height="48" ruleFlowGroup="Get_CSR_User_Information" />
+    <ruleSet id="35" name="Get Starr Admin Information" x="1032" y="288" width="191" height="48" ruleFlowGroup="GetAgencyInformation" />
+    <ruleSet id="32" name="Entity" x="624" y="144" width="97" height="48" ruleFlowGroup="Entity_Information" />
+    <split id="38" name="Gateway" x="888" y="144" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-34</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="34" toType="DROOLS_DEFAULT" name="To SysAdmin" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Entity::EntityType") == "SYSADMIN");</constraint>
+        <constraint toNodeId="82" toType="DROOLS_DEFAULT" name="Failed" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Entity::EntityType") != "STARRADMIN")&amp;&amp;
+ qMap1:QuestionHashMap(qMap.getString("Object::Entity::EntityType") != "AGENCYADMIN")&amp;&amp;
+ qMap2:QuestionHashMap(qMap.getString("Object::Entity::EntityType") != "SYSADMIN");</constraint>
+        <constraint toNodeId="35" toType="DROOLS_DEFAULT" name="To StarrAdmin" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Entity::EntityType") == "STARRADMIN");</constraint>
+        <constraint toNodeId="6" toType="DROOLS_DEFAULT" name="Agency Admin" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Entity::EntityType") == "AGENCYADMIN");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="42" name="User Info Lookup" x="360" y="144" width="125" height="48" ruleFlowGroup="User_Info_Lookup" />
+    <subProcess id="59" name="RollbackV2" x="1260" y="215" width="110" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-36</value>
+      </metaData>
+    </subProcess>
+    <fault id="62" name="Error" x="1464" y="216" width="48" height="48" faultName="Error Fetching AGENCYADMIN Information" faultVariable="Error Fetching AGENCYADMIN Information" />
+  </nodes>
+
+  <connections>
+    <connection from="67" to="68" />
+    <connection from="32" to="71" bendpoints="[]" />
+    <connection from="6" to="65" />
+    <connection from="38" to="6" bendpoints="[]" />
+    <connection from="71" to="67" bendpoints="[]" />
+    <connection from="75" to="76" bendpoints="[]" />
+    <connection from="76" to="77" />
+    <connection from="1" to="78" />
+    <connection from="65" to="11" bendpoints="[]" />
+    <connection from="87" to="11" bendpoints="[1645,313]" />
+    <connection from="88" to="11" bendpoints="[1647,477]" />
+    <connection from="78" to="79" />
+    <connection from="42" to="75" bendpoints="[]" />
+    <connection from="87" to="84" />
+    <connection from="11" to="16" />
+    <connection from="35" to="87" />
+    <connection from="84" to="86" />
+    <connection from="80" to="81" />
+    <connection from="79" to="80" />
+    <connection from="82" to="83" />
+    <connection from="16" to="23" />
+    <connection from="38" to="82" bendpoints="[910,581;1329,581;1751,579;1752,486]" />
+    <connection from="23" to="25" />
+    <connection from="26" to="27" />
+    <connection from="23" to="26" />
+    <connection from="88" to="89" />
+    <connection from="34" to="88" />
+    <connection from="89" to="90" />
+    <connection from="38" to="34" bendpoints="[911,478]" />
+    <connection from="38" to="35" bendpoints="[912,310]" />
+    <connection from="75" to="32" />
+    <connection from="71" to="38" bendpoints="[]" />
+    <connection from="79" to="42" />
+    <connection from="65" to="59" />
+    <connection from="59" to="62" />
+  </connections>
+
+</process>

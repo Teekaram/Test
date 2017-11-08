@@ -1,0 +1,91 @@
+	package com.solartis.common.getlist
+	 
+	import com.solartis.data.QuestionHashMap;
+	import com.solartis.data.MapEntry;
+  	import com.solartis.ejb.application.ApplicationManager;
+	import com.solartis.application.ejb.ApplicationManagerV2;
+	import com.solartis.ejb.application.v3_2.ApplicationManagerV3_2;
+  	import java.sql.*;
+  	import javax.naming.*;
+  	import java.util.ArrayList;
+	import org.hibernate.Session;
+	import java.sql.Connection;
+	
+	/*Purpose : This rule flow group is to Implement Application Get List With LimitSet */
+	/*Created by:keerthana_r@solartis.com */	
+	/*Created Date:19-Sep-2017 */
+	
+	rule "Get Application List"                                                                    
+	no-loop
+	ruleflow-group "Application_GetList_WithLimit"
+		when		
+ 	    	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+ 	    	not MapEntry(keyAsString =="Object::Application::GetList::Executed");
+ 	    	requestMap:QuestionHashMap();
+		then	
+			
+			Connection configConnection = null;
+			Connection transactionConnection = null;
+			ApplicationManagerV2 applicationManagerV2 = null;
+			Context initialContext = null;
+			initialContext = new InitialContext();
+			ArrayList<ArrayList<QuestionHashMap>> resultList = new ArrayList<ArrayList<QuestionHashMap>>();
+ 			try{
+ 			 	//To Get the connection objects for transaction and configuration datasources
+				 transactionConnection = (Connection)requestMap.get("Object::Application::TransactionConnection"); 
+				 configConnection = (Connection)requestMap.get("Object::Application::ConfigConnection");
+				 applicationManagerV2=(ApplicationManagerV2)initialContext.lookup(requestMap.getString("Object::Application::ApplicationLookUpV2"));
+                               resultList = applicationManagerV2.getList(requestMap, ownerId, "APPLICATION_BEAN", configConnection, transactionConnection);
+                               System.out.println("************2.  In ApplnGetListCount    "+resultList);
+					if(resultList !=null && resultList.size()>0){
+						ArrayList resultMapList = (ArrayList)resultList.get(0);						
+						insert(new MapEntry("Object::Application::ResultList",resultMapList));
+						requestMap.put("Object::Application::ResultList",resultMapList);
+					}
+					update(requestMap);
+			}
+			catch(Exception exception){
+			requestMap.put("Object::Exception::Status","Failed");
+			requestMap.put("Object::Exception::Code",exception.getMessage());
+			update(requestMap);
+			insert(new MapEntry("Object::Application::GetList::Executed","N"));
+			}
+			insert(new MapEntry("Object::Application::GetList::Executed","Y"));
+	end
+
+
+rule "Get_Count"                                                                    
+	no-loop
+	ruleflow-group "Get_Count"
+	when		
+	    	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+ 	    	not MapEntry(keyAsString =="Object::Application::GetCount::Executed");
+	    	requestMap:QuestionHashMap();
+	then
+
+		Connection configConnection = null;
+		Connection transactionConnection = null;
+		ApplicationManagerV3_2 applicationManagerV3 = null;
+			Context initialContext = null;
+			initialContext = new InitialContext();
+		ArrayList<Integer> countList = new ArrayList<Integer>();
+		try{		
+			//To Get the connection objects for transaction and configuration datasources
+			 transactionConnection = (Connection)requestMap.get("Object::Application::TransactionConnection"); 
+			 configConnection = (Connection)requestMap.get("Object::Application::ConfigConnection");
+			 applicationManagerV3=(ApplicationManagerV3_2)initialContext.lookup(requestMap.getString("Object::Application::ApplicationLookUpV3"));
+			countList = applicationManagerV3.getApplicationTransactionDataListCount(requestMap, ownerId, configConnection, transactionConnection);
+			System.out.println("************ In ApplnGetListCount    "+countList);
+			if(countList !=null && countList.size()>0){
+				requestMap.put("Object::GetList::RowCount",countList.get(0));
+			}
+			update(requestMap);
+			}
+			catch(Exception exception){
+			requestMap.put("Object::Exception::Status","Failed");
+			requestMap.put("Object::Exception::Code",exception.getMessage());
+			update(requestMap);
+			insert(new MapEntry("Object::Application::GetList::Executed","N"));
+			}
+	insert(new MapEntry("Object::Application::GetCount::Executed","Y"));
+end

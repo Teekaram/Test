@@ -1,0 +1,64 @@
+	package com.solartis.coveragesandlimits
+	 
+	import com.solartis.data.QuestionHashMap;
+	import com.solartis.data.MapEntry;
+  	import com.solartis.ejb.application.ApplicationManager;
+  	import com.solartis.application.ejb.ApplicationManagerV2;
+  	import java.sql.*;
+  	import javax.naming.*;
+  	import java.util.ArrayList;
+	import org.hibernate.Session;
+	import java.sql.Connection;
+	
+	/*Purpose of this rule flow : This rule flow group is to Implement Application Get List */
+	/*Created by:keerthana_r@solartis.com*/	
+	/*Created Date:19-Sep-2017*/
+	
+	rule "Get Application List"                                                                    
+	no-loop
+	ruleflow-group "Application_GetList"
+		when		
+ 	    	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+ 	    	not MapEntry(keyAsString =="Object::Application::GetList::Executed");
+ 	    	requestMap:QuestionHashMap();
+		then	
+			
+			Connection configConnection = null;
+			Connection transactionConnection = null;
+			ApplicationManagerV2 applicationManagerV2 = null;
+			Context initialContext = null;
+			initialContext = new InitialContext();
+			ArrayList<ArrayList<QuestionHashMap>> resultList = new ArrayList<ArrayList<QuestionHashMap>>();
+ 			try{
+ 			 	//To Get the connection objects for transaction and configuration datasources
+				 transactionConnection = (Connection)requestMap.get("Object::Application::TransactionConnection"); 
+				 configConnection = (Connection)requestMap.get("Object::Application::ConfigConnection");
+				 applicationManagerV2=(ApplicationManagerV2)initialContext.lookup(requestMap.getString("Object::Application::ApplicationLookUpV2"));
+
+
+
+                               resultList = applicationManagerV2.getApplicationTransactionDataList(requestMap, ownerId, "APPLICATION_BEAN", configConnection, transactionConnection);
+                               
+                               System.out.println("RRRRRRRRRRRRRRRRR" +resultList);
+                               
+					if(resultList !=null && resultList.size()>0){
+					
+						ArrayList resultMapList = (ArrayList)resultList.get(0);						
+						insert(new MapEntry("Object::Application::ResultList",resultMapList));
+						requestMap.put("Object::Application::ResultList",resultMapList);
+					}
+					
+					update(requestMap);
+						
+			}
+			catch(Exception exception){
+			requestMap.put("Object::Exception::Status","Failed");
+			requestMap.put("Object::Exception::Code",exception.getMessage());
+			update(requestMap);
+			insert(new MapEntry("Object::Application::GetList::Executed","N"));
+			}
+						
+			insert(new MapEntry("Object::Application::GetList::Executed","Y"));
+	end
+	
+	

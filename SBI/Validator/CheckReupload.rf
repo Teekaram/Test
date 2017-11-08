@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<process xmlns="http://drools.org/drools-5.0/process"
+         xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+         xs:schemaLocation="http://drools.org/drools-5.0/process drools-processes-5.0.xsd"
+         type="RuleFlow" name="CheckReupload" id="CheckReupload" package-name="com.solartis.event.BordereauImport.Validator" >
+
+  <header>
+    <imports>
+      <import name="com.solartis.data.QuestionHashMap" />
+    </imports>
+  </header>
+
+  <nodes>
+    <start id="1" name="Start" x="72" y="96" width="48" height="48" />
+    <subProcess id="2" name="SetUpV2" x="168" y="96" width="110" height="48" processId="SetUpV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-107</value>
+      </metaData>
+    </subProcess>
+    <split id="3" name="Gateway" x="336" y="96" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-108</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="6" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(!qMap.getString("Object::Exception::Status").equalsIgnoreCase("Failed"));</constraint>
+        <constraint toNodeId="4" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status").equalsIgnoreCase("Failed"));</constraint>
+      </constraints>
+    </split>
+    <subProcess id="4" name="RollbackV2" x="288" y="192" width="145" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-109</value>
+      </metaData>
+    </subProcess>
+    <fault id="5" name="Error" x="334" y="295" width="48" height="48" faultName="Exception while Set Up" />
+    <ruleSet id="6" name="Check_Reupload" x="432" y="96" width="145" height="48" ruleFlowGroup="Check_Reupload" />
+    <split id="7" name="Gateway" x="624" y="96" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-112</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="8" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status").equalsIgnoreCase("Failed"));</constraint>
+        <constraint toNodeId="11" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(!qMap.getString("Object::Exception::Status").equalsIgnoreCase("Failed"));</constraint>
+      </constraints>
+    </split>
+    <subProcess id="8" name="RollbackV2" x="576" y="192" width="145" height="48" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-113</value>
+      </metaData>
+    </subProcess>
+    <fault id="9" name="Error" x="624" y="276" width="48" height="48" faultName="Exception while File Upload Validation" />
+    <end id="10" name="End" x="888" y="96" width="48" height="48" />
+    <ruleSet id="11" name="CloseSessionV2" x="720" y="96" width="121" height="48" ruleFlowGroup="CloseSessionV2" />
+  </nodes>
+
+  <connections>
+    <connection from="1" to="2" />
+    <connection from="2" to="3" />
+    <connection from="3" to="4" />
+    <connection from="4" to="5" />
+    <connection from="3" to="6" />
+    <connection from="6" to="7" />
+    <connection from="7" to="8" />
+    <connection from="8" to="9" />
+    <connection from="11" to="10" />
+    <connection from="7" to="11" />
+  </connections>
+
+</process>

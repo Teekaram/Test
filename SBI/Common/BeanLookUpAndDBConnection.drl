@@ -1,0 +1,453 @@
+
+package com.solartis.event.Starr.PMS.Common;
+
+	
+import com.solartis.data.QuestionHashMap;
+import org.hibernate.Session;
+import com.solartis.data.MapEntry;
+import com.util.dbCon;
+import java.sql.*;
+import org.hibernate.Session;
+import com.solartis.data.MapEntry;
+import com.solartis.ejb.application.ApplicationManager;
+import com.solartis.application.ejb.ApplicationManagerV2;
+import com.util.dbCon;
+import com.solartis.common.manager.ejb.EntityManagerFactorySingleton;
+import javax.naming.*;
+import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import com.solartis.commonsearch.manager.ejb.CommonSearchInterface;
+import com.solartis.ejb.sequence.SequenceSessionBean;
+import com.solartis.common.service.ejb.ParentServiceBean;
+import com.solartis.ejb.ETL.ETLManager;
+
+
+
+rule "Bean Lookup"
+ruleflow-group "BeanLookUpV2"
+when
+	not MapEntry(keyAsString =="BeanLookup_Executed");
+	requestDetailMap:QuestionHashMap();     
+then
+	ApplicationManager applicationManager = null;
+	ApplicationManagerV2 applicationManagerV2 = null;
+	CommonSearchInterface commonSearchManager = null;
+	EntityManagerFactorySingleton entityManagerFactorySingleton=null;	
+	SequenceSessionBean sequenceSession = null;
+	ParentServiceBean parentServiceBean = null;
+	Context initialContext = null;
+	ETLManager ETLServiceManager = null;
+	initialContext = new InitialContext();
+	try {
+		entityManagerFactorySingleton = (EntityManagerFactorySingleton)initialContext.lookup(requestDetailMap.getString("Object::Application::EntityManagerLookUp"));
+		applicationManager=(ApplicationManager)initialContext.lookup(requestDetailMap.getString("Object::Application::ApplicationLookUp"));
+		applicationManagerV2=(ApplicationManagerV2)initialContext.lookup(requestDetailMap.getString("Object::Application::ApplicationLookUpV2"));
+		commonSearchManager=(CommonSearchInterface)initialContext.lookup(requestDetailMap.getString("Object::FindConsole::LookUp"));
+		sequenceSession = (SequenceSessionBean)initialContext.lookup(requestDetailMap.getString("Object::SequenceSession::LookUp"));
+		parentServiceBean = (ParentServiceBean)initialContext.lookup(requestDetailMap.getString("Object::ParentServiceBean::LookUp"));
+		ETLServiceManager = (ETLManager)initialContext.lookup(requestDetailMap.getString("Object::ETL::BeanLookUp"));
+		if(commonSearchManager == null || applicationManager == null || applicationManagerV2 == null || entityManagerFactorySingleton == null || sequenceSession == null || parentServiceBean == null || ETLServiceManager == null ) {
+			throw new Exception("LookUp_Failed");
+		} else {
+			requestDetailMap.put("Object::Application::Lookup::Object",applicationManager);
+			requestDetailMap.put("Object::ApplicationV2::Lookup::Object",applicationManagerV2);
+			requestDetailMap.put("Object::FindConsole::Lookup::Object",commonSearchManager);
+			requestDetailMap.put("Object::Application::EntityManagerLookUp::Object",entityManagerFactorySingleton);
+			requestDetailMap.put("Object::SequenceSession::Lookup::Object",sequenceSession);
+			requestDetailMap.put("Object::ParentServiceBean::Lookup::Object",parentServiceBean );
+ 			requestDetailMap.put("Object::ETL::Lookup::Object",ETLServiceManager );
+ 		}
+	} catch( Exception exception ) {	
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+	} finally {
+		insert(new MapEntry("BeanLookup_Executed","Y"));
+		update(requestDetailMap);
+	}
+end
+		
+
+	
+rule "Commit All"
+ruleflow-group "CommitAll"
+no-loop 
+when
+	not MapEntry(keyAsString =="Object::Commit::Executed");				
+  	requestDetailMap:QuestionHashMap();
+then
+	Connection configConnection = null;
+	Connection transactionConnection = null;
+	Connection sysConfigConnection = null;
+	Session session = null;	     
+	try {
+		try {
+//Transaction Connection
+			if(requestDetailMap.get("Object::Application::TransactionConnection") != null && !requestDetailMap.get("Object::Application::TransactionConnection").equals("")){
+				transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+				if (transactionConnection != null ) {
+					transactionConnection.commit();						
+					if(!transactionConnection.isClosed()) {
+						transactionConnection.close(); 
+					}
+				}
+			}
+		} catch(Exception exception) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+
+//Configuration Connection
+		try {
+			if(requestDetailMap.get("Object::Application::ConfigConnection") != null && !requestDetailMap.get("Object::Application::ConfigConnection").equals("")){
+				configConnection = (Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+				if (configConnection != null ) {
+					if(!configConnection.isClosed()) {
+						configConnection.close(); 
+					} 
+				}
+			}
+		} catch ( Exception exception ) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Sysconfig Connection
+			if(requestDetailMap.get("Object::Application::SysConfigTransConnection") != null && !requestDetailMap.get("Object::Application::SysConfigTransConnection").equals("")){
+				sysConfigConnection = (Connection)requestDetailMap.get("Object::Application::SysConfigTransConnection");
+				if (sysConfigConnection != null ) {
+					if(!sysConfigConnection.isClosed()) {
+						sysConfigConnection.close();
+					}
+				}
+			}
+		} catch ( Exception exception ) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {	
+//Session		
+			if(requestDetailMap.get("Object::Application::TransactionPersistent") != null && !requestDetailMap.get("Object::Application::TransactionPersistent").equals("")){
+				session = (Session)requestDetailMap.get("Object::Application::TransactionPersistent"); 				
+				if(session!=null) {
+					if(session.isOpen()) {
+						session.close();
+					}
+				}
+			}
+	    } catch(Exception exception) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+	    insert(new MapEntry("Object::Commit::Executed","Y"));
+	    requestDetailMap.put("Object::Commit::Executed","Y");
+	    insert(new MapEntry("Object::Response::Status","SUCCESS"));
+	} catch( Exception exception ) {
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		insert(new MapEntry("Object::Commit::Executed","N"));
+	} finally {
+		requestDetailMap.remove("Object::Application::TransactionConnection");
+		requestDetailMap.remove("Object::Application::SysConfigTransConnection");
+		requestDetailMap.remove("Object::Application::ConfigConnection");
+		requestDetailMap.remove("Object::Application::TransactionPersistent");
+		update(requestDetailMap);
+	}
+end
+
+
+rule "Create Session"
+ruleflow-group "CreateSessionV2"
+no-loop 
+when
+	not MapEntry(keyAsString =="CreateSession_Executed");
+	ownerIdEntry:MapEntry(keyAsString =="Object::OwnerId",ownerId:valueAsLong);
+	requestDetailMap:QuestionHashMap();
+then
+	EntityManagerFactorySingleton entityManagerFactorySingleton=null;
+	ApplicationManager applicationManager =null;
+	Connection configConnection = null;
+	Connection transactionConnection = null;
+	Connection sysConfigTransConnection = null;
+	Context initialContext = null;
+	dbCon dbcon = null;
+	Session session = null;
+	String applicationTransactionDataSourceName = "";
+	String applicationConfigDataSourceName = "";		
+	String applSysConfigDataSourceName = "";		
+	initialContext = new InitialContext();
+	String transactionPersistanceUnitName = "";
+	try {
+	
+		if(!requestDetailMap.getString("Object::Application::EntityManagerLookUp").equals("")){
+			entityManagerFactorySingleton = (EntityManagerFactorySingleton)initialContext.lookup(requestDetailMap.getString("Object::Application::EntityManagerLookUp"));
+		}
+		if(!requestDetailMap.getString("Object::Application::TransactionJdbcUnitName").equals("")){
+			applicationTransactionDataSourceName= entityManagerFactorySingleton.getDataSource(ownerId, requestDetailMap.getString("Object::Application::TransactionJdbcUnitName"));
+		}
+		if(!requestDetailMap.getString("Object::Application::ConfigJdbcUnitName").equals("")){
+			applicationConfigDataSourceName= entityManagerFactorySingleton.getDataSource(ownerId, requestDetailMap.getString("Object::Application::ConfigJdbcUnitName"));
+		}
+		if(!requestDetailMap.getString("Object::Application::SysConfigTransactionJdbcUnitName").equals("")){
+			applSysConfigDataSourceName = entityManagerFactorySingleton.getDataSource(ownerId, requestDetailMap.getString("Object::Application::SysConfigTransactionJdbcUnitName"));
+		}
+		if(!requestDetailMap.getString("Object::Application::TransactionPersistentUnitName").equals("")){
+			transactionPersistanceUnitName = requestDetailMap.getString("Object::Application::TransactionPersistentUnitName");
+		}
+		dbcon = new dbCon();
+		
+//ConfigConnection
+		if(!applicationConfigDataSourceName.equals("")){
+			configConnection = dbcon.getConnection(applicationConfigDataSourceName);
+			if ( configConnection == null ) {
+				throw new Exception("Connection_Failed");
+			}
+			requestDetailMap.put("Object::Application::ConfigConnection",configConnection);
+			insert(new MapEntry("Object::Application::ConfigConnection",configConnection));
+		}	
+		
+//Transaction Connection				
+		if(!applicationTransactionDataSourceName.equals("")){
+			transactionConnection = dbcon.getConnection(applicationTransactionDataSourceName);
+			if ( transactionConnection == null ) {
+				throw new Exception("Connection_Failed");
+			}
+			requestDetailMap.put("Object::Application::TransactionConnection",transactionConnection);
+			insert(new MapEntry("Object::Application::TransactionConnection",transactionConnection));
+			transactionConnection.setAutoCommit(false); 	
+		}		
+
+//Sysconfig Connection
+		if(!applSysConfigDataSourceName.equals("")){
+			sysConfigTransConnection = dbcon.getConnection(applSysConfigDataSourceName);
+			if ( sysConfigTransConnection == null ) {
+				throw new Exception("Connection_Failed");
+			}
+			requestDetailMap.put("Object::Application::SysConfigTransConnection",sysConfigTransConnection);
+			insert(new MapEntry("Object::Application::SysConfigTransConnection",sysConfigTransConnection));
+		}
+		
+		
+//Session
+		if(!transactionPersistanceUnitName.equals("")){
+			session = entityManagerFactorySingleton.getSession(ownerId, transactionPersistanceUnitName);
+			if ( session == null ) {
+				throw new Exception("Session_Failed");
+			}
+			requestDetailMap.put("Object::Application::TransactionPersistent",session);
+			insert(new MapEntry("Object::Application::TransactionPersistent",session));	
+		}
+		   
+		requestDetailMap.put("dbName",applicationTransactionDataSourceName);
+
+
+	} catch( Exception exception ) {
+		exception.printStackTrace();
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+	} finally {
+		insert(new MapEntry("CreateSession_Executed","Y"));
+		update(requestDetailMap);
+	}
+end
+
+rule "Close Session"
+ruleflow-group "CloseSessionV2"
+no-loop 
+when 	  
+	not MapEntry(keyAsString =="CloseSession_Executed");  		
+	requestDetailMap:QuestionHashMap();
+then
+	Connection transactionConnection = null;
+	Connection sysConfigTransConnection = null;
+	Connection configConnection = null; 
+	Session session= null;				
+	try {
+	
+		 try {
+//Transaction Connection
+			 if(requestDetailMap.get("Object::Application::TransactionConnection") != null && !requestDetailMap.get("Object::Application::TransactionConnection").equals("")){
+			 	transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");
+			 	if( transactionConnection !=null && !transactionConnection.isClosed() ){
+					transactionConnection.close();
+			 	}
+			 }
+		} catch(Exception exception) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Sysconfig Connection
+			if(requestDetailMap.get("Object::Application::SysConfigTransConnection") != null && !requestDetailMap.get("Object::Application::SysConfigTransConnection").equals("")){
+				sysConfigTransConnection = (Connection)requestDetailMap.get("Object::Application::SysConfigTransConnection");
+				if( sysConfigTransConnection != null && !sysConfigTransConnection.isClosed() ){
+					sysConfigTransConnection.close();
+			 	}
+			 }
+		} catch(Exception exception) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Config Connection
+			if(requestDetailMap.get("Object::Application::ConfigConnection") != null && !requestDetailMap.get("Object::Application::ConfigConnection").equals("")){
+				configConnection = (Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+				if( configConnection!= null && !configConnection.isClosed() ){
+					configConnection.close();
+				}
+			}
+		} catch(Exception exception) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Session
+			if(requestDetailMap.get("Object::Application::TransactionPersistent") != null && !requestDetailMap.get("Object::Application::TransactionPersistent").equals("")){
+				session = (Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+			 	if( session != null && session.isOpen() ){
+					session.close();
+			 	}
+			 }
+		} catch(Exception exception) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+	} catch( Exception exception ) {					
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+	} finally {
+		requestDetailMap.remove("Object::Application::TransactionConnection");
+		requestDetailMap.remove("Object::Application::SysConfigTransConnection");
+		requestDetailMap.remove("Object::Application::ConfigConnection");
+		requestDetailMap.remove("Object::Application::TransactionPersistent");
+		insert(new MapEntry("CloseSession_Executed","Y"));
+		update(requestDetailMap);
+	}
+end
+
+
+rule "Rollback"
+ruleflow-group "RollbackV2"
+no-loop 
+when
+	not MapEntry(keyAsString =="Object::Rollback::Executed");				
+	requestDetailMap:QuestionHashMap();
+then
+	Connection transactionConnection = null;
+	Connection sysConfigTransConnection = null;
+	Connection configConnection = null; 
+	Session session= null;				
+	try {
+		try {
+//Transaction Connection
+			if(requestDetailMap.get("Object::Application::TransactionConnection") != null && !requestDetailMap.get("Object::Application::TransactionConnection").equals("")){
+				transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection"); 
+				if ( transactionConnection != null ) {
+					transactionConnection.rollback();						
+					if( !transactionConnection.isClosed() ) {
+						transactionConnection.close(); 
+					} 
+				}
+			}
+		} catch ( Exception exception ) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Sysconfig Connection
+			if(requestDetailMap.get("Object::Application::SysConfigTransConnection") != null && !requestDetailMap.get("Object::Application::SysConfigTransConnection").equals("")){
+				sysConfigTransConnection = (Connection)requestDetailMap.get("Object::Application::SysConfigTransConnection");	
+				if ( sysConfigTransConnection != null && !sysConfigTransConnection.isClosed() ) {
+					sysConfigTransConnection.close();
+				} 
+			}
+		} catch ( Exception exception ) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Config Connection
+			if(requestDetailMap.get("Object::Application::ConfigConnection") != null && !requestDetailMap.get("Object::Application::ConfigConnection").equals("")){
+				configConnection = (Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+				if ( configConnection!= null && !configConnection.isClosed() ) {
+					configConnection.close();
+				}
+			} 
+		} catch( Exception exception ) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+		try {
+//Session
+			if(requestDetailMap.get("Object::Application::TransactionPersistent") != null && !requestDetailMap.get("Object::Application::TransactionPersistent").equals("")){
+				session = (Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+				if ( session != null && session.isOpen() ) {
+					session.close();
+				}
+			}
+		} catch( Exception exception ) {
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		}
+	} catch( Exception exception ) {
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+	} finally {
+		requestDetailMap.remove("Object::Application::TransactionConnection");
+		requestDetailMap.remove("Object::Application::SysConfigTransConnection");
+		requestDetailMap.remove("Object::Application::ConfigConnection");
+		requestDetailMap.remove("Object::Application::TransactionPersistent");
+		
+		insert(new MapEntry("Object::Rollback::Executed","Y"));
+		update(requestDetailMap);
+	}		
+end
+
+
+
+
+
+rule "RemoveConnectionKeys"
+no-loop
+ruleflow-group "Remove_Connection_Keys"
+when
+        requestDetailMap:QuestionHashMap();
+        not MapEntry( key == "Remove_Connection_Keys_Executed");
+        beanLookUpEntry:MapEntry(keyAsString =="BeanLookup_Executed");
+        CreateSessionEntry:MapEntry( keyAsString == "CreateSession_Executed" )
+        CommitAllEntry:MapEntry( keyAsString == "Object::Commit::Executed" )
+then
+try{
+        retract(beanLookUpEntry);
+        retract(CreateSessionEntry);
+        retract(CommitAllEntry);
+        }
+        catch(Exception exception){
+        requestDetailMap.put("Object::Exception::Status","Failed");
+    requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+    }
+        insert(new MapEntry("Remove_Connection_Keys_Executed","Y"));
+
+end
+
+
+
+rule "GetOwnerConfiguration"
+ruleflow-group "GetOwnerConfiguration"
+	no-loop
+	when
+  			requestDetailMap:QuestionHashMap(requestDetailMap.getString("GetOwnerConfigurationInfo").equals(""));
+  	then
+  		ParentServiceBean parentServiceBean = null; 
+  		long ownerId = 0;
+  		String path = ""; 
+		try {
+				requestDetailMap.put("Object::Log::Type","OwnerConfig");
+				requestDetailMap.put("Object::Log::ActivityType","GetOwnerConfigurationV2");
+                if (!requestDetailMap.getString("Object::OwnerId").equalsIgnoreCase("") ){
+					ownerId = Long.parseLong(requestDetailMap.getString("Object::OwnerId"));
+				} 
+				parentServiceBean = (ParentServiceBean) requestDetailMap.get("Object::ParentServiceBean::Lookup::Object");
+				path = parentServiceBean.getParameterValue(ownerId , "CONFIG_ROOT_PATH", "solartisSysConfig");
+				requestDetailMap.put("Object::Document::TemplateRootPath",path);
+				path = parentServiceBean.getParameterValue(ownerId , "ATTACHMENT_ROOT", "solartisSysConfig");
+				requestDetailMap.put("Object::Document::OutputFileRootPath",path);
+				requestDetailMap.put("GetOwnerConfigurationInfo","Y");
+			} catch(Exception exception) {
+				
+				requestDetailMap.put("GetOwnerConfigurationInfo","N");
+				requestDetailMap.put("Object::Exception::Status","Failed");
+				requestDetailMap.put("Object::Exception::Code",exception.getMessage());	
+				requestDetailMap.put("Object::Log::Exception","GetOwnerConfiguration :: "+exception.getMessage());		
+			}
+			finally{
+         update(requestDetailMap);
+        }
+end

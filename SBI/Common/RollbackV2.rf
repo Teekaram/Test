@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<process xmlns="http://drools.org/drools-5.0/process"
+         xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+         xs:schemaLocation="http://drools.org/drools-5.0/process drools-processes-5.0.xsd"
+         type="RuleFlow" name="flow" id="RollbackV2" package-name="com.solartis.event.Starr.PMS.Common" >
+
+  <header>
+    <imports>
+      <import name="com.solartis.data.QuestionHashMap" />
+    </imports>
+  </header>
+
+  <nodes>
+    <start id="1" name="Start" x="48" y="204" width="48" height="48" />
+    <ruleSet id="2" name="Transaction Rollback" x="372" y="204" width="128" height="48" ruleFlowGroup="RollbackV2" />
+    <split id="3" name="Gateway" x="576" y="204" width="49" height="49" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-122</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="10" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Rollback::Status") != "Failed");</constraint>
+        <constraint toNodeId="5" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Rollback::Status") == "Failed");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="5" name="Close Session" x="516" y="324" width="169" height="48" ruleFlowGroup="CloseSessionV2" />
+    <fault id="6" name="Error" x="582" y="450" width="48" height="48" faultName="Exception :: Transaction RollBack Failed" />
+    <end id="10" name="End" x="696" y="204" width="48" height="48" />
+    <ruleSet id="11" name="ErrorLog" x="180" y="204" width="126" height="48" ruleFlowGroup="ErrorLog" />
+  </nodes>
+
+  <connections>
+    <connection from="11" to="2" />
+    <connection from="2" to="3" />
+    <connection from="3" to="5" />
+    <connection from="5" to="6" />
+    <connection from="3" to="10" />
+    <connection from="1" to="11" />
+  </connections>
+
+</process>

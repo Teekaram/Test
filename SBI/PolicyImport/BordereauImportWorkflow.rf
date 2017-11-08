@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<process xmlns="http://drools.org/drools-5.0/process"
+         xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
+         xs:schemaLocation="http://drools.org/drools-5.0/process drools-processes-5.0.xsd"
+         type="RuleFlow" name="BordereauImport" id="BordereauImport" package-name="com.solartis.event.StarrAssist.Validators" >
+
+  <header>
+    <imports>
+      <import name="com.solartis.data.QuestionHashMap" />
+    </imports>
+  </header>
+
+  <nodes>
+    <start id="1" name="Start" x="36" y="276" width="61" height="51" />
+    <end id="2" name="End" x="3548" y="274" width="47" height="44" />
+    <ruleSet id="3" name="Job_Initiation_Save_import_file_table" x="676" y="273" width="142" height="51" ruleFlowGroup="Bordereau_JobInitiation" />
+    <subProcess id="64" name="Rollback" x="556" y="362" width="108" height="45" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-42</value>
+      </metaData>
+    </subProcess>
+    <ruleSet id="6" name="Get_bordereau_kettle_File" x="984" y="276" width="165" height="45" ruleFlowGroup="Get_bordereau_kettle_File" />
+    <ruleSet id="16" name="Trigger_Kettle" x="2204" y="272" width="138" height="47" ruleFlowGroup="Bordereau_Kettle_Trigger" />
+    <subProcess id="19" name="SetUpV2" x="156" y="276" width="140" height="52" processId="SetUpV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-158</value>
+      </metaData>
+    </subProcess>
+    <ruleSet id="20" name="TransactionCommit" x="3193" y="279" width="147" height="43" ruleFlowGroup="CommitAll" />
+    <fault id="23" name="Error" x="353" y="456" width="124" height="23" faultName="Exception in setup" />
+    <split id="22" name="Gateway" x="349" y="276" width="48" height="36" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-161</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="50" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="61" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <split id="25" name="Gateway" x="864" y="276" width="57" height="43" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-162</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="33" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="6" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <split id="27" name="Gateway" x="1212" y="276" width="60" height="38" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-163</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="34" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="29" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <fault id="26" name="Error" x="864" y="456" width="47" height="32" faultName="Exception in Job_Initiation" />
+    <ruleSet id="29" name="TransactionCommit" x="1344" y="276" width="149" height="44" ruleFlowGroup="CommitAll" />
+    <fault id="28" name="Error" x="1212" y="468" width="34" height="34" faultName="Exception in Get_kettle_File" />
+    <subProcess id="34" name="Rollback" x="1176" y="384" width="121" height="39" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-169</value>
+      </metaData>
+    </subProcess>
+    <ruleSet id="35" name="Remove_Connection_Keys" x="1631" y="277" width="178" height="41" ruleFlowGroup="Remove_Connection_Keys" />
+    <subProcess id="33" name="Rollback" x="828" y="372" width="121" height="44" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-172</value>
+      </metaData>
+    </subProcess>
+    <fault id="39" name="Error" x="2052" y="480" width="43" height="27" faultName="Exception in set up before kettle trigger" />
+    <subProcess id="36" name="SetUpV2" x="1894" y="280" width="117" height="45" processId="SetUpV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-174</value>
+      </metaData>
+    </subProcess>
+    <split id="37" name="Gateway" x="2062" y="273" width="37" height="32" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-175</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="51" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="16" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <fault id="46" name="Error" x="2396" y="490" width="42" height="35" faultName="Exception in Updating Kettle status" />
+    <split id="47" name="Gateway" x="3437" y="272" width="31" height="45" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-178</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="48" toType="DROOLS_DEFAULT" name="Commit Failed" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Commit::Executed") != "Y");</constraint>
+        <constraint toNodeId="2" toType="DROOLS_DEFAULT" name="Commit Success" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Commit::Executed") == "Y");</constraint>
+      </constraints>
+    </split>
+    <subProcess id="44" name="Rollback" x="2347" y="397" width="137" height="42" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-179</value>
+      </metaData>
+    </subProcess>
+    <split id="45" name="Gateway" x="2389" y="264" width="85" height="40" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-180</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="53" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+        <constraint toNodeId="44" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+      </constraints>
+    </split>
+    <subProcess id="51" name="Rollback" x="2016" y="386" width="145" height="49" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-181</value>
+      </metaData>
+    </subProcess>
+    <subProcess id="50" name="Rollback" x="303" y="360" width="145" height="49" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-182</value>
+      </metaData>
+    </subProcess>
+    <fault id="49" name="Error" x="3446" y="482" width="37" height="42" faultName="Exception in Transaction Commit" />
+    <subProcess id="48" name="Rollback" x="3405" y="377" width="121" height="42" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-184</value>
+      </metaData>
+    </subProcess>
+    <fault id="55" name="Error" x="2738" y="487" width="40" height="34" faultName="Exception in Validation Get" />
+    <split id="54" name="Gateway" x="2744" y="271" width="57" height="43" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-186</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="57" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+        <constraint toNodeId="56" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="53" name="ValidationGet" x="2547" y="272" width="169" height="41" ruleFlowGroup="Bordereau_ValidationGet" />
+    <subProcess id="59" name="Rollback" x="3065" y="369" width="100" height="51" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-74</value>
+      </metaData>
+    </subProcess>
+    <split id="58" name="Gateway" x="3092" y="275" width="16" height="39" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-73</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="20" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+        <constraint toNodeId="59" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="57" name="SaveProcessStatus" x="2898" y="277" width="113" height="41" ruleFlowGroup="Bordereau_SaveKettleStatus" />
+    <subProcess id="56" name="Rollback" x="2705" y="397" width="119" height="46" processId="RollbackV2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-188</value>
+      </metaData>
+    </subProcess>
+    <fault id="63" name="Error" x="588" y="457" width="28" height="26" faultName="Exception in Get sub owner id" />
+    <split id="62" name="Gateway" x="585" y="280" width="27" height="37" type="2" >
+      <metaData name="UniqueId">
+        <value>_jbpm-unique-79</value>
+      </metaData>
+      <constraints>
+        <constraint toNodeId="64" toType="DROOLS_DEFAULT" name="Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") == "Failed");</constraint>
+        <constraint toNodeId="3" toType="DROOLS_DEFAULT" name="No Exception" priority="1" type="rule" dialect="mvel" >qMap:QuestionHashMap(qMap.getString("Object::Exception::Status") != "Failed");</constraint>
+      </constraints>
+    </split>
+    <ruleSet id="61" name="Get_SubOwnerId" x="441" y="273" width="124" height="56" ruleFlowGroup="Get_SubOwnerId" />
+    <fault id="60" name="Error" x="3087" y="485" width="54" height="36" faultName="Exception in bordereau kettle status updation" />
+  </nodes>
+
+  <connections>
+    <connection from="47" to="2" />
+    <connection from="62" to="3" />
+    <connection from="62" to="64" />
+    <connection from="25" to="6" />
+    <connection from="37" to="16" />
+    <connection from="1" to="19" />
+    <connection from="58" to="20" />
+    <connection from="50" to="23" />
+    <connection from="19" to="22" />
+    <connection from="3" to="25" />
+    <connection from="6" to="27" />
+    <connection from="33" to="26" />
+    <connection from="27" to="29" />
+    <connection from="34" to="28" />
+    <connection from="27" to="34" />
+    <connection from="29" to="35" />
+    <connection from="25" to="33" />
+    <connection from="51" to="39" />
+    <connection from="35" to="36" />
+    <connection from="36" to="37" />
+    <connection from="44" to="46" />
+    <connection from="20" to="47" />
+    <connection from="45" to="44" />
+    <connection from="16" to="45" />
+    <connection from="37" to="51" />
+    <connection from="22" to="50" />
+    <connection from="48" to="49" />
+    <connection from="47" to="48" />
+    <connection from="56" to="55" />
+    <connection from="53" to="54" />
+    <connection from="45" to="53" />
+    <connection from="58" to="59" />
+    <connection from="57" to="58" />
+    <connection from="54" to="57" />
+    <connection from="54" to="56" />
+    <connection from="64" to="63" />
+    <connection from="61" to="62" />
+    <connection from="22" to="61" />
+    <connection from="59" to="60" />
+  </connections>
+
+</process>

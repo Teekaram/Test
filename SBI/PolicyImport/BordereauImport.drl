@@ -1,0 +1,466 @@
+package com.solartis.event.starrassist
+
+import com.solartis.data.QuestionHashMap;
+import com.solartis.data.MapEntry;
+import com.solartis.rules.common.RuleInformation;
+import java.util.ArrayList;
+import java.util.Date;
+import java.lang.Object;
+import java.text.Format;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.SQLException;
+import org.hibernate.Session;
+import com.solartis.knowledgebase.ejb.KnowledgeGateway;
+import com.solartis.data.*;
+import com.solartis.ejb.application.ApplicationManager;
+import com.solartis.application.ejb.ApplicationManagerV2;
+import javax.naming.*;
+import com.solartis.data.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.Calendar;
+import java.util.LinkedHashMap;
+import org.apache.commons.io.FilenameUtils;
+import com.solartis.ejb.ETL.ETLManager;
+
+
+global RuleInformation ruleInformation;
+
+/*Purpose of this rule flow : To Get Subowner id */
+/*Created by:keerthana_r@solartis.com*/	
+/*Created Date:01-Sep-2017*/
+
+rule "Get_SubOwnerId"
+ruleflow-group "Get_SubOwnerId"
+no-loop
+
+when
+	not MapEntry(keyAsString =="Get_SubOwnerId_Executed");
+
+	requestDetailMap:QuestionHashMap();   
+	
+	ruleInformationList:ArrayList()
+
+	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+
+then
+
+    Connection transactionConnection = null;
+
+	ApplicationManagerV2 applicationManagerV2 = null;
+
+	Session session= null;
+
+	Connection configConnection = null;
+	
+	ArrayList<ArrayList<QuestionHashMap>> responseList=new ArrayList<ArrayList<QuestionHashMap>>();
+		
+	ArrayList<QuestionHashMap> getOwnerList = new ArrayList<QuestionHashMap>();
+		
+	try {
+
+			transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+	 		applicationManagerV2=(ApplicationManagerV2)requestDetailMap.get("Object::ApplicationV2::Lookup::Object");	
+		   	session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+		    configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+		    requestDetailMap.put("Object::Bordereau::ProductName",requestDetailMap.getString("Object::Bordereau::ProductName"));
+	       	requestDetailMap.put("Object::Bordereau::AgencyId",requestDetailMap.getString("Object::Bordereau::AgencyId"));
+	   
+	        requestDetailMap.put("Object::Application::SubApplicationType","Bordereau_GetOwner");
+			requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+			requestDetailMap.put("Object::Application::SubApplicationName","Bordereau_GetOwner");
+			requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+			requestDetailMap.put("Object::Application::ObjectId",0);
+			requestDetailMap.put("Object::Application::ObjectVerId",0);  
+		   	requestDetailMap.put("Object::Application::Active","Y");
+		  	requestDetailMap.put("Object::ServiceRequest::OwnerID",ownerId); 
+		   
+		   	responseList = applicationManagerV2.getApplicationTransactionDataList(requestDetailMap, ownerId, "APPLICATION_BEAN", configConnection, configConnection);
+			
+			if( (responseList != null) && (responseList.size() > 0) ) {
+				getOwnerList = (ArrayList)responseList.get(0);
+			}
+			if(	getOwnerList != null && getOwnerList.size() > 0 ) {
+				for( int i = 0 ; i < getOwnerList.size() ; i++ ) {
+					QuestionHashMap ownerMap = (QuestionHashMap)getOwnerList.get(i);				
+					requestDetailMap.put("Object::SubOwnerID",ownerMap.getString("Object::SubOwnerID"));
+				}
+			}
+			insert(new MapEntry("Get_SubOwnerId_Executed","Y"));
+
+	} catch(Exception exception) {
+		
+		ruleInformation=new RuleInformation("INTERNAL_ERROR");
+     	ruleInformationList.add(ruleInformation);
+     	requestDetailMap.put("Object::Rule::Status","Failed");
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		requestDetailMap.put("Object::Log::Exception","In get owner id Rule :: "+exception.getMessage());
+	} finally {
+		update(requestDetailMap);
+	}
+
+end
+
+/*Purpose of this rule flow : To Save uploaded file information in DMS_BORDEREAU_FILE_IMPORT table*/
+/*Created by:keerthana_r@solartis.com*/	
+/*Created Date:01-Sep-2017*/
+
+rule "Bordereau_JobInitiation"
+ruleflow-group "Bordereau_JobInitiation"
+no-loop
+
+when
+
+	not MapEntry(keyAsString =="Bordereau_JobInitiation_Executed");
+	requestDetailMap:QuestionHashMap();   
+	ruleInformationList:ArrayList()
+	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+
+then
+			
+	try {
+	  		Connection transactionConnection = null;
+			ApplicationManagerV2 applicationManagerV2 = null;
+			Session session= null;
+			Connection configConnection = null;
+			QuestionHashMap bordereauSave = new QuestionHashMap();
+			transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+	 		applicationManagerV2=(ApplicationManagerV2)requestDetailMap.get("Object::ApplicationV2::Lookup::Object");
+		   	session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+		    configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+			if(!requestDetailMap.getString("Object::Attachment::FileName").equalsIgnoreCase("")){
+				String fileType = FilenameUtils.getExtension(requestDetailMap.getString("Object::Attachment::FileName")); 
+		  		requestDetailMap.put("Object::Attachment::FileType",fileType);	
+			 	String fileName = FilenameUtils.removeExtension(requestDetailMap.getString("Object::Attachment::FileName")); 
+			 	requestDetailMap.put("Object::Attachment::FileName",fileName);
+			}   
+	  	   	requestDetailMap.put("Object::Attachment::RelativePath",requestDetailMap.getString("Object::Attachment::RelativePath"));
+	  	   	String relativePath=requestDetailMap.getString("Object::Attachment::RelativePath");
+	  	   	requestDetailMap.put("Object::Document::OutputFileRootPath",requestDetailMap.getString("Object::Document::OutputFileRootPath"));
+			String rootPath=requestDetailMap.getString("Object::Document::OutputFileRootPath");
+	  	   	String path = rootPath.concat(relativePath).concat("/");
+	  	   	requestDetailMap.put("Object::Attachment::fullPath",path);
+	        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			Date date = new Date();
+			String processStartTime = dateFormat.format(date);
+			String dbDate = dateFormat.format(date);
+	        requestDetailMap.put("Object::Process::StartTime",processStartTime);
+	        requestDetailMap.put("Object::Bordereau::AgencyId",requestDetailMap.get("Object::Bordereau::AgencyId"));
+	        requestDetailMap.put("Object::Transaction::Req::File::ImportId","-1");
+	        String Dateofbordereau= requestDetailMap.getString("Object::Bordereau::ScheduledDate");	
+	        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
+			Date bordereauDate = sdf.parse(Dateofbordereau);
+			SimpleDateFormat mdyFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    		String BordereauDate = mdyFormat.format(bordereauDate);
+			requestDetailMap.put("Object::Bordereau::ScheduledDate",BordereauDate);
+	      	requestDetailMap.put("Object::SubOwnerID",requestDetailMap.get("Object::SubOwnerID"));
+	      	requestDetailMap.put("Object::date",dbDate);
+	      	requestDetailMap.put("Object::Active","Y");
+	      	requestDetailMap.put("Object::User::Name",requestDetailMap.getString("Object::ServiceRequest::UserName"));
+	      	
+	        requestDetailMap.put("Object::Application::SubApplicationType","Bordereau_ImportSave");
+			requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+			requestDetailMap.put("Object::Application::SubApplicationName","Bordereau_ImportSave");
+			requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+			requestDetailMap.put("Object::Application::ObjectId",0);
+			requestDetailMap.put("Object::Application::ObjectVerId",0);  
+			requestDetailMap.put("Object::ServiceRequest::OwnerID",ownerId);  
+			
+			bordereauSave = applicationManagerV2.saveSubApplicationData(requestDetailMap,requestDetailMap,ownerId,configConnection,transactionConnection,session);
+			insert(new MapEntry("Bordereau_JobInitiation_Executed","Y"));
+			
+	} catch(Exception exception) {
+		ruleInformation=new RuleInformation("INTERNAL_ERROR");
+     	ruleInformationList.add(ruleInformation);
+     	requestDetailMap.put("Object::Rule::Status","Failed");
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		requestDetailMap.put("Object::Log::Exception","In job Save :: "+exception.getMessage());
+	} finally {
+		update(requestDetailMap);
+	}
+
+end
+
+/*Purpose of this rule flow : To get the KJB file location and kjb file name*/
+/*Created by:keerthana_r@solartis.com*/	
+/*Created Date:01-Sep-2017*/
+
+rule "Get_bordereau_kettle_File"
+ruleflow-group "Get_bordereau_kettle_File"
+no-loop
+
+when
+
+	not MapEntry(keyAsString =="Get_bordereau_kettle_File_Executed");
+	requestDetailMap:QuestionHashMap();   
+	ruleInformationList:ArrayList()
+	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+
+then
+
+    Connection transactionConnection = null;
+	ApplicationManagerV2 applicationManagerV2 = null;
+	Session session= null;
+	Connection configConnection = null;
+	ArrayList<ArrayList<QuestionHashMap>> responseList=new ArrayList<ArrayList<QuestionHashMap>>();
+	ArrayList<QuestionHashMap> getKettleList = new ArrayList<QuestionHashMap>();
+	try {
+			transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+	 		applicationManagerV2=(ApplicationManagerV2)requestDetailMap.get("Object::ApplicationV2::Lookup::Object");
+		   	session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+		    configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+		    requestDetailMap.put("Object::File::DefinitionID",requestDetailMap.getString("Object::File::DefinitionID"));
+	       	requestDetailMap.put("Object::Event::Type","BordereauImport");
+	        requestDetailMap.put("Object::Application::SubApplicationType","bordereau_getKjbFile");
+			requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+			requestDetailMap.put("Object::Application::SubApplicationName","bordereau_getKjbFile");
+			requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+			requestDetailMap.put("Object::Application::ObjectId",0);
+			requestDetailMap.put("Object::Application::ObjectVerId",0);  
+		   	requestDetailMap.put("Object::Application::Active","Y");
+		  	requestDetailMap.put("Object::ServiceRequest::OwnerID",ownerId); 
+		   
+		   	responseList = applicationManagerV2.getApplicationTransactionDataList(requestDetailMap, ownerId, "APPLICATION_BEAN", configConnection, configConnection);
+			
+			if( (responseList != null) && (responseList.size() > 0) ) {
+				getKettleList = (ArrayList)responseList.get(0);
+			}
+			if(	getKettleList != null && getKettleList.size() > 0 ) {
+				for( int i = 0 ; i < getKettleList.size() ; i++ ) {
+					QuestionHashMap kettleMap = (QuestionHashMap)getKettleList.get(i);
+					requestDetailMap.put("Object::ETL::FilePath",kettleMap.getString("Object::ETL::FilePath"));
+				}
+			}
+			insert(new MapEntry("Get_bordereau_kettle_File_Executed","Y"));
+	} catch(Exception exception) {
+		ruleInformation=new RuleInformation("INTERNAL_ERROR");
+     	ruleInformationList.add(ruleInformation);
+     	requestDetailMap.put("Object::Rule::Status","Failed");
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		requestDetailMap.put("Object::Log::Exception","In get Kettle file rule :: "+exception.getMessage());
+	} finally {
+		update(requestDetailMap);
+	}
+end
+
+/*Purpose of this rule flow : To Trigger kettle from application*/
+/*Created by:keerthana_r@solartis.com*/	
+/*Created Date:01-Sep-2017*/
+
+rule "Bordereau_Kettle_Trigger"
+ruleflow-group "Bordereau_Kettle_Trigger"
+no-loop
+
+when
+	 not MapEntry(keyAsString =="Bordereau_Kettle_Trigger_Executed");
+	 requestDetailMap:QuestionHashMap();   
+	 ruleInformationList:ArrayList()
+	 ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+then
+   		ETLManager kettleTransformationManager = null;
+       	QuestionHashMap inputMap = null; 
+ 		try {
+  				inputMap = new QuestionHashMap();
+		        requestDetailMap.put("Object::Transaction::Req::File::ImportId",requestDetailMap.getString("Object::Transaction::Req::File::ImportId"));
+		        requestDetailMap.put("Object::File::DefinitionID",requestDetailMap.getString("Object::File::DefinitionID"));
+				kettleTransformationManager=(ETLManager)requestDetailMap.get("Object::ETL::Lookup::Object");
+				String[] inputParameter = {requestDetailMap.getString("Object::Transaction::Req::File::ImportId"),requestDetailMap.getString("Object::SubOwnerID"), requestDetailMap.getString("Object::ServiceRequest::UserName"),requestDetailMap.getString("Object::File::DefinitionID"),requestDetailMap.getString("Object::Bordereau::AgencyId")};
+				String ETLrelativePath = requestDetailMap.getString("Object::ETL::FilePath");
+				String rootPath = requestDetailMap.getString("Object::Document::TemplateRootPath");
+				String ETLFilePath = rootPath.concat(ETLrelativePath);
+				inputMap.put("Object::KettleTransformation::KTR::FileURL",ETLFilePath);
+				inputMap.put("Object::KettleTransformation::KTR::CommandLineParameter",inputParameter);
+				inputMap = kettleTransformationManager.invokeKettleJob(inputMap);
+				requestDetailMap.putAll(inputMap);
+				if(requestDetailMap.getString("Object::KettleTransformation::Status").equalsIgnoreCase("Failed")) {
+   		 				throw new Exception(requestDetailMap.getString("Object::KettleTransformation::ErrorMessage"));
+  				 }
+ 			} 
+ 		catch(Exception exception) {
+ 			ruleInformation=new RuleInformation("INTERNAL_ERROR");
+     		ruleInformationList.add(ruleInformation);
+     		requestDetailMap.put("Object::Rule::Status","Failed");
+			requestDetailMap.put("Object::Exception::Status","Failed");
+			requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+			requestDetailMap.put("Object::Log::Exception","In job update :: "+exception.getMessage());
+  			update(requestDetailMap);
+ 		} 
+end
+
+/*Purpose of this rule flow : To update the Process status after invoking kettle */
+/*Created by:keerthana_r@solartis.com*/	
+/*Created Date:01-Sep-2017*/
+
+rule "Bordereau_SaveKettleStatus"
+ruleflow-group "Bordereau_SaveKettleStatus"
+no-loop
+
+when
+	not MapEntry(keyAsString =="Bordereau_SaveKettleStatus_Executed");
+	requestDetailMap:QuestionHashMap();   
+	ruleInformationList:ArrayList()
+	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+then
+    Connection transactionConnection = null;
+	ApplicationManagerV2 applicationManagerV2 = null;
+	Session session= null;
+	Connection configConnection = null;
+	QuestionHashMap BordereauUpdate = new QuestionHashMap();
+	try {
+			transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+	 		applicationManagerV2=(ApplicationManagerV2)requestDetailMap.get("Object::ApplicationV2::Lookup::Object");
+		   	session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+		    configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");	  	         
+	        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			Date date = new Date();
+			String processEndTime = dateFormat.format(date);
+	        requestDetailMap.put("Object::Process::EndTime",processEndTime);
+	        requestDetailMap.put("Object::Transaction::Req::File::ImportId",requestDetailMap.get("Object::Transaction::Req::File::ImportId"));
+   	        requestDetailMap.put("Object::Application::SubApplicationType","BordereauUpdate");
+			requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+			requestDetailMap.put("Object::Application::SubApplicationName","Bordereau_ImportSave");
+			requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+			requestDetailMap.put("Object::Application::ObjectId",0);
+			requestDetailMap.put("Object::Application::ObjectVerId",0);  
+			BordereauUpdate = applicationManagerV2.saveSubApplicationData(requestDetailMap,requestDetailMap,ownerId,configConnection,transactionConnection,session);
+			insert(new MapEntry("Bordereau_SaveKettleStatus_Executed","Y"));
+	} catch(Exception exception) {
+		ruleInformation=new RuleInformation("INTERNAL_ERROR");
+     	ruleInformationList.add(ruleInformation);
+     	requestDetailMap.put("Object::Rule::Status","Failed");
+		requestDetailMap.put("Object::Exception::Status","Failed");
+		requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+		requestDetailMap.put("Object::Log::Exception","In job update :: "+exception.getMessage());
+	} finally {
+		update(requestDetailMap);
+	}
+end
+
+/*Purpose of this rule flow : To Get the validation error codes*/
+/*Created by:keerthana_r@solartis.com*/	
+/*Created Date:01-Sep-2017*/
+
+rule "Bordereau_ValidationGet"
+ruleflow-group "Bordereau_ValidationGet"
+no-loop 
+
+when
+	not MapEntry(keyAsString =="Bordereau_ValidationGet_Executed");
+	requestDetailMap:QuestionHashMap();   
+	ruleInformationList:ArrayList()
+	ownerIdMapEntry:MapEntry(keyAsString =="Object::ServiceRequest::OwnerId",ownerId:valueAsLong);
+then
+	    Connection transactionConnection = null;
+		ApplicationManagerV2 applicationManagerV2 = null;
+		Session session= null;
+		Connection configConnection = null;
+		ArrayList<ArrayList<QuestionHashMap>> responseList=new ArrayList<ArrayList<QuestionHashMap>>();
+		ArrayList<ArrayList<QuestionHashMap>> getValidationList=new ArrayList<ArrayList<QuestionHashMap>>();
+		try {
+			transactionConnection = (Connection)requestDetailMap.get("Object::Application::TransactionConnection");	
+	 		applicationManagerV2=(ApplicationManagerV2)requestDetailMap.get("Object::ApplicationV2::Lookup::Object");
+		   	session=(Session)requestDetailMap.get("Object::Application::TransactionPersistent");
+		    configConnection=(Connection)requestDetailMap.get("Object::Application::ConfigConnection");
+		    requestDetailMap.put("Object::Transaction::Req::File::ImportId",requestDetailMap.getString("Object::Transaction::Req::File::ImportId"));
+	       	requestDetailMap.put("Object::SubOwnerID",requestDetailMap.getString("Object::SubOwnerID"));
+	       	ArrayList<QuestionHashMap> ErrorList = new ArrayList<QuestionHashMap>();
+			ArrayList<String> ErrorCodeList = new ArrayList<String>();
+			QuestionHashMap ErrorMap = new QuestionHashMap();
+			QuestionHashMap ErrorlistMap = new QuestionHashMap();
+					
+ 			requestDetailMap.put("Object::Application::SubApplicationType","Bordereau_ErrorCode");
+			requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+			requestDetailMap.put("Object::Application::SubApplicationName","Bordereau_ErrorCode");
+			requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+			requestDetailMap.put("Object::Application::ObjectId",0);
+			requestDetailMap.put("Object::Application::ObjectVerId",0);  
+			requestDetailMap.put("Object::Application::Active","Y");
+			requestDetailMap.put("Object::ServiceRequest::OwnerID",ownerId); 
+			  
+			responseList = applicationManagerV2.getApplicationTransactionDataList(requestDetailMap, ownerId, "APPLICATION_BEAN", configConnection, transactionConnection);
+			if( (responseList != null) && (responseList.size() > 0) ) {
+				ErrorList = responseList.get(0);
+				ErrorlistMap = new QuestionHashMap();
+				if(ErrorList.size() >0 ) {
+					ErrorlistMap = ErrorList.get(0);
+					requestDetailMap.put("Object::Process::Status",ErrorlistMap.getString("Object::Process::Status"));
+					requestDetailMap.put("Object::Process::Message",ErrorlistMap.getString("Object::Process::Message"));
+					
+					requestDetailMap.put("Object::Bordereau::ImportedRecords",ErrorlistMap.getString("Object::Bordereau::ImportedRecords"));
+					requestDetailMap.put("Object::Bordereau::FoundRecords",ErrorlistMap.getString("Object::Bordereau::FoundRecords"));
+					requestDetailMap.put("Object::Bordereau::FailedRecords",ErrorlistMap.getString("Object::Bordereau::FailedRecords"));
+					requestDetailMap.put("Object::Bordereau::FileImportStatus",ErrorlistMap.getString("Object::Bordereau::FileImportStatus"));
+					
+					String errorFileName = ErrorlistMap.getString("Object::Bordereau::Download::FileName");
+					String errorFileType = ErrorlistMap.getString("Object::Bordereau::Download::FileType");
+					String errorFileLocation  = ErrorlistMap.getString("Object::Bordereau::Download::FileLoc");
+					String fileNamewithPath = errorFileName.concat(".").concat(errorFileType);
+					String errorFileLocationwithName  = errorFileLocation.concat(fileNamewithPath);
+					requestDetailMap.put("Object::Bordereau::Download::FileName",fileNamewithPath);
+					requestDetailMap.put("Object::Bordereau::Download::FileLoc",errorFileLocationwithName);
+					if(!requestDetailMap.getString("Object::Process::Status").equalsIgnoreCase("Success")) {
+	   					ruleInformation=new RuleInformation(ErrorlistMap.getString("Object::Process::Message"));
+	 					ruleInformationList.add(ruleInformation);
+	 					requestDetailMap.put("Object::Rule::Status","Failed");
+	 					requestDetailMap.put("Object::File::Status","Failed");
+					}
+				}
+			}
+				
+			requestDetailMap.put("Object::Application::SubApplicationType","Com_Bordereau_Error");
+			requestDetailMap.put("Object::Application::ObjectName","BordereauImport");
+			requestDetailMap.put("Object::Application::SubApplicationName","Bordereau_ErrorCode");
+			requestDetailMap.put("Object::Application::SubApplicationVersion","1.0");
+			requestDetailMap.put("Object::Application::ObjectId",0);
+			requestDetailMap.put("Object::Application::ObjectVerId",0);  
+			requestDetailMap.put("Object::Application::Active","Y");
+			requestDetailMap.put("Object::ServiceRequest::OwnerID",ownerId); 
+			ArrayList<QuestionHashMap> ErrorList1 = new ArrayList<QuestionHashMap>();
+			ArrayList<String> ErrorCodeList1 = new ArrayList<String>();
+			QuestionHashMap ErrorMap1 = new QuestionHashMap();
+			
+			getValidationList = applicationManagerV2.getApplicationTransactionDataList(requestDetailMap, ownerId, "APPLICATION_BEAN", configConnection, transactionConnection);
+			System.out.println("getValidationList "+getValidationList);
+			if( (getValidationList != null) && (getValidationList.size() > 0) ) {
+				ErrorList1 = getValidationList.get(0);
+				if(ErrorList1.size() >0 ) {
+					for(int i=0;i<ErrorList1.size();i++) {
+						ErrorMap1 = new QuestionHashMap();
+						ErrorMap1 = ErrorList1.get(i);
+						if(requestDetailMap.getString("Object::Process::Status").equalsIgnoreCase("Success")) {
+							String unformattedErrorCode = ErrorMap1.getString("Object::Bordereau::ErrorCode");
+							if(!(unformattedErrorCode.equalsIgnoreCase("")) && unformattedErrorCode != null){
+								ErrorCodeList1 = new ArrayList<String>(Arrays.asList(unformattedErrorCode.split(",")));
+								System.out.println("ErrorCodeList1 "+ErrorCodeList1);
+							}
+							for(int j=0;j<ErrorCodeList1.size();j++) {
+								ErrorCodeList1.set(j,ErrorCodeList1.get(j)+"_"+requestDetailMap.getString("Object::SubOwnerID"));
+								ruleInformation=new RuleInformation(ErrorCodeList1.get(j),"Object::Bordereau::PolicyId",ErrorMap1.getString("Object::Bordereau::PolicyId"),"Object::Bordereau::TravelerId",ErrorMap1.getString("Object::Bordereau::TravelerId"),"Object::Bordereau::RowNumber",ErrorMap1.getString("Object::Bordereau::RowNumber"));
+     							ruleInformationList.add(ruleInformation);
+     							requestDetailMap.put("Object::Rule::Status","Failed");
+     						}	
+     					}	
+					}
+				}
+				
+			}			
+			insert(new MapEntry("Bordereau_ValidationGet_Executed","Y"));
+ 			} 
+ 			catch(Exception exception) {
+ 				ruleInformation=new RuleInformation("INTERNAL_ERROR");
+     			ruleInformationList.add(ruleInformation);
+     			requestDetailMap.put("Object::Rule::Status","Failed");
+				requestDetailMap.put("Object::Exception::Status","Failed");
+				requestDetailMap.put("Object::Exception::Code",exception.getMessage());
+				insert(new MapEntry("Bordereau_ValidationGet_Executed","N"));
+				requestDetailMap.put("Object::Log::Exception","In Kettle Trigger:: "+exception.getMessage());
+  				update(requestDetailMap);
+ 			 } 
+end
